@@ -2,6 +2,7 @@ numpy
 scipy
 param
 panel
+jupyter_bokeh
 pandas
 sklearn
 matplotlib
