@@ -1,5 +1,4 @@
 numpy
-functools
 scipy
 panel
 sklearn
