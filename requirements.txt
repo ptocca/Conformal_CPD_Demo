@@ -1,5 +1,7 @@
+numpy
+functools
 scipy
-voila
 panel
 sklearn
 matplotlib
+voila
