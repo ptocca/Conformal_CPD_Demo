@@ -1,0 +1,5 @@
+scipy
+voila
+panel
+sklearn
+matplotlib
