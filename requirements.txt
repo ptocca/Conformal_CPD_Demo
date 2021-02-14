@@ -1,5 +1,6 @@
 numpy
 scipy
+param
 panel
 sklearn
 matplotlib
