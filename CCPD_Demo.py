@@ -47,7 +47,7 @@ pn.extension('mathjax', comms='vscode')
 
 # %%
 def plot_samples(ic_samples, ooc_samples):
-    f = Figure(figsize=(12, 4))
+    f = Figure(figsize=(12, 3.1))
     ax_a = f.add_subplot(1, 1, 1)
     x = np.arange(0, ic_samples.shape[0]+ooc_samples.shape[0])
     ax_a.plot(x[:ic_samples.shape[0]], ic_samples, "g.",
@@ -57,11 +57,12 @@ def plot_samples(ic_samples, ooc_samples):
     ax_a.set_title("Samples")
     ax_a.legend()
     ax_a.set_xlabel('"Time"')
+    f.tight_layout()
 
     return f
 
 
-class SyntheticDataSet(param.Parameterized):
+class Synthetic_Data_Set(param.Parameterized):
     N_in_control = param.Integer(default=2000, bounds=(100, 10000))
     N_out_of_control = param.Integer(default=2000, bounds=(100, 10000))
     N_calibration = param.Integer(default=5000, bounds=(100, 10000))
@@ -78,7 +79,7 @@ class SyntheticDataSet(param.Parameterized):
     n = 2
 
     def __init__(self, **params):
-        super(SyntheticDataSet, self).__init__(**params)
+        super(Synthetic_Data_Set, self).__init__(**params)
         self.update()
 
     def update(self):
@@ -120,7 +121,7 @@ class SyntheticDataSet(param.Parameterized):
         return "# %d" % self.N
 
 
-sd = SyntheticDataSet()
+sd = Synthetic_Data_Set()
 # %%
 # sd_panel = pn.Row(sd, sd.view)
 
@@ -154,7 +155,7 @@ def ECDF_cal_p(p_test, p_cal):
 
 # %%
 def plot_pVals(ic_samples, ooc_samples):
-    f = Figure(figsize=(12, 4))
+    f = Figure(figsize=(12, 3.1))
     ax_a = f.add_subplot(1, 1, 1)
     x = np.arange(0, ic_samples.shape[0]+ooc_samples.shape[0])
     ax_a.plot(x[:ic_samples.shape[0]], ic_samples, "g.",
@@ -164,6 +165,7 @@ def plot_pVals(ic_samples, ooc_samples):
     ax_a.set_title("p-values")
     ax_a.legend()
     ax_a.set_xlabel('"Time"')
+    f.tight_layout()
 
     return f
 
@@ -228,15 +230,11 @@ def power_calibrator(p, k):
 
 
 def simple_mixture(p):
-    return (1-p+p*np.log(p))/(p*(np.log(p)**2))
-
-
-def log_calibrator(p):
-    return -np.log(p)
+    return (1-p+p*np.log(p))/(p*(np.log(p)*np.log(p)))
 
 
 def plot_bf(ic_samples, ooc_samples):
-    f = Figure(figsize=(12, 4))
+    f = Figure(figsize=(12, 3.1))
     ax_a = f.add_subplot(1, 1, 1)
     x = np.arange(0, ic_samples.shape[0]+ooc_samples.shape[0])
     ax_a.plot(x[:ic_samples.shape[0]], ic_samples, "g.",
@@ -246,29 +244,36 @@ def plot_bf(ic_samples, ooc_samples):
     ax_a.set_title("Bayes Factors")
     ax_a.legend()
     ax_a.set_xlabel('"Time"')
+    f.tight_layout()
 
     return f
 
 
-class BettingFunction(param.Parameterized):
+class Betting_Function(param.Parameterized):
     micp = param.Parameter(precedence=-1)
     k = param.Number(default=0.8, bounds=(0.0, 1.0))
     ic_bf = param.Array(precedence=-1)
     ooc_bf = param.Array(precedence=-1)
     betting_function = param.ObjectSelector(default="Power calibrator",
-                                            objects=["Power calibrator", "Linear", "Negative logarithm"])
+                                            objects=["Power calibrator",
+                                                     "Simple mixture",
+                                                     "Linear",
+                                                     "Negative logarithm",
+                                                     "None"])
 
     def __init__(self, micp, **params):
         self.micp = micp
-        super(BettingFunction, self).__init__(**params)
+        super(Betting_Function, self).__init__(**params)
         self.update()
 
     @pn.depends("k", "betting_function", "micp.ic_pVals", "micp.ooc_pVals", watch=True)
     def update(self):
         bf_dict = {
             "Power calibrator": partial(power_calibrator, k=self.k),
-            "Linear": lambda x: 2*(1-x),
-            "Negative logarithm": lambda x: -np.log(x)
+            "Simple mixture": simple_mixture,
+            "Linear": lambda p: 2*(1-p),
+            "Negative logarithm": lambda p: -np.log(p),
+            "None": lambda p: p,
         }
         with param.batch_watch(self):
             self.ic_bf = bf_dict[self.betting_function](self.micp.ic_pVals)
@@ -282,7 +287,7 @@ class BettingFunction(param.Parameterized):
 
 
 # %%
-bf = BettingFunction(micp)
+bf = Betting_Function(micp)
 # %%
 bf_panel = pn.Column(pn.Row(micp.sd.param, pn.Column(micp.sd.view,
                                                      micp.view)),
@@ -295,11 +300,6 @@ bf_panel = pn.Column(pn.Row(micp.sd.param, pn.Column(micp.sd.view,
 # srv.stop()
 
 # %%
-# srv1 = pn.Row(mc.view_validity(p_w = 500, p_h=500)).show()
-# %%
-# srv1.stop()
-# %%
-
 
 def CPD_r(s, x, s_0, thr):
     """return statistic for change-point detection V_n = s(V_{n-1})*(x_n)
@@ -330,11 +330,26 @@ def Conformal_r(x, c, thr):
             S[i] = c(x[i])+S[i-1]
     return S
 
+
+def CPD_Conf(x, r, r_0, thr):
+    """Vovk's conformal procedure"""
+    ratios = x[1:]/x[:-1]
+    R = np.empty_like(x)
+    R[0] = r_0
+    for i in range(1, len(R)):
+        if R[i-1] > thr:
+            prev = r_0
+        else:
+            prev = R[i-1]
+        R[i] = r(prev)*ratios[i-1]
+    return R
+
+
 # %%
 
 
 def plot_martingale(mart, ic_size, thr):
-    f = Figure(figsize=(12, 4))
+    f = Figure(figsize=(12, 3.1))
     ax_a = f.add_subplot(1, 1, 1)
     x = np.arange(0, mart.shape[0])
     ax_a.plot(x[:ic_size], mart[:ic_size], "g.",
@@ -347,8 +362,10 @@ def plot_martingale(mart, ic_size, thr):
     ax_a.legend()
     ax_a.set_xlabel('"Time"')
     ax_a.annotate(f"Alarms\nin-control: {ic_alarms}, out-of-control:{ooc_alarms}",
-                  xy=(0.5, 0.9), xycoords='axes fraction', va='center', ha='center',
+                  xy=(0.5, 0.9), xycoords='axes fraction', va='top', ha='center',
                   bbox=dict(boxstyle="round", fc="yellow", alpha=0.5), fontsize=14)
+    
+    f.tight_layout()
 
     return f
 
@@ -358,7 +375,10 @@ class Martingale(param.Parameterized):
     threshold = param.Number(default=100.0, bounds=(0.0, 1000.0))
     mart = param.Array(precedence=-1)
     method = param.ObjectSelector(default="CUSUM",
-                                  objects=["CUSUM", "Shiryaev-Roberts", "Sum"])
+                                  objects=["CUSUM",
+                                           "Shiryaev-Roberts",
+                                           "Product (log)",
+                                           "Sum (of diffs from 0.5)", ])
 
     def __init__(self, micp, **params):
         self.bf = bf
@@ -370,7 +390,8 @@ class Martingale(param.Parameterized):
         method_dict = {
             "CUSUM": partial(CPD_r, s=lambda x: max(1, x), s_0=1),
             "Shiryaev-Roberts": partial(CPD_r, s=lambda x: 1+x, s_0=0),
-            "Sum": partial(Conformal_r, c=lambda x: x-1)
+            "Sum (of diffs from 0.5)": partial(Conformal_r, c=lambda x: x-0.5),
+            "Product (log)": partial(Conformal_r, c=lambda x: np.log(x)),
         }
         stat = method_dict[self.method]
         with param.batch_watch(self):
