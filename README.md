@@ -1,6 +1,8 @@
 # Conformal CPD Demo
 **Work In Progress** A simple interactive demonstration of Conformal Change Point Detection.
 
+[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/ptocca/Conformal_CPD_Demo/HEAD?urlpath=voila%2Frender%2FCCPD_Demo.ipynb)
+
 Conformal Change-Point Detection applies the framework of Conformal Predictors (CP) to the problem of detecting a
 change in the distribution of a sequence of variates.
 
@@ -16,4 +18,8 @@ Change Point Detection is then achieved by computing functions of the p-values. 
 An appropriate value of the threshold is chosen so that the an acceptable rate of false alarms is produced, while detecting quickly a change in distribution.
 
 
-[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/ptocca/Conformal_CPD_Demo/HEAD?urlpath=voila%2Frender%2FCCPD_Demo.ipynb)
+### References
+1. Algorithmic learning in a random world, V. Vovk, A. Gammerman, G. Shafer, Springer, 2005
+2. Working papers 24, 26, 29 at [ALRW Site](http://www.alrw.net/)
+
+
