@@ -436,7 +436,7 @@ class Martingale(param.Parameterized):
                                   objects=["CUSUM",
                                            "Shiryaev-Roberts",
                                            "Product (log)",
-                                           "Sum (of diffs from 0.5)", ])
+                                           "First moment", ])
 
     def __init__(self, micp, **params):
         self.bf = bf
@@ -448,7 +448,7 @@ class Martingale(param.Parameterized):
         method_dict = {
             "CUSUM": partial(CPD_r, s=lambda x: max(1, x), s_0=1),
             "Shiryaev-Roberts": partial(CPD_r, s=lambda x: 1+x, s_0=0),
-            "Sum (of diffs from 0.5)": partial(Conformal_r, c=lambda x: x-0.5),
+            "First moment": partial(Conformal_r, c=lambda x: x-0.5),
             "Product (log)": partial(Conformal_r, c=lambda x: np.log(x)+1),
         }
         stat = method_dict[self.method]
