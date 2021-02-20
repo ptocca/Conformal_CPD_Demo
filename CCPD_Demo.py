@@ -19,11 +19,10 @@
 
 # %%
 from functools import partial
-from scipy.special import factorial, comb
 from CP import pValues
 from scipy.interpolate import UnivariateSpline, InterpolatedUnivariateSpline, \
     interp1d
-from CP import *
+
 import param
 from matplotlib.figure import Figure
 import panel as pn
@@ -41,9 +40,68 @@ display(HTML("<style>.container {width: 90% !important;} </style>"))
 # pn.extension('mathjax', comm='ipywidgets')
 pn.extension('mathjax', comms='vscode')
 
-# %%
-# %matplotlib inline
 
+notes = pn.pane.LaTeX(r"""<h1>Conformal Change-Point Detection</h1>
+The framework generally accepted for Change-Point Detection posits a sequence of random variates $X_1, X_2, \dots$, which in a first phase are
+each generated independently from a same distribution $p(x)$ up to an index $\tau$ which is a priori unknown. In the second phase, that is, $t < \tau$, the variates $X_t$ are 
+generated from a different distrbution $q(x)$.<br>
+The problem is to detect the change as quickly as possible.<br>
+Historically, this problem was studied in the context of industrial quality control to monitor manufacturing processes. 
+For this reason, the first phase is referred to as "in-control" and the second phase as "out-of-control".
+A common class of methods computes a statistics from the sequence of variates and triggers an alarm (i.e. detects a change) 
+when the statistic exceeds a preset threshold.
+The statistic is designed to exhibit small fluctuations in the in-control phase and to diverge during the out-of-control phase.
+The lower the threshold, the quickest the detection during the out-of-control phase, but also the higher the chance of false alarm
+during the in-control phase.<br>
+The established methods, namely CUSUM and Shiryaev-Roberts, require the knowledge of the in-control probability density $p(x)$ as
+well as of the out-of-control probability density $q(x)$.<br>
+The conformal CPD approach relies only on the availability of a sufficiently sample of in-control variates.
+
+<h2>The demo</h2>
+In this demo, the user is presented with a number of controls (sliders, selection boxes) on the left and with charts on the right.
+Going from top to bottom, random variates are generated, p-values are calculated, then transformed into Bayes Factors, and finally 
+a CPD statistic is computed.
+
+<h4>Synthetic Data Set</h4>
+The in-control (IC) and out-of-control (OOC) distributions are both Gaussian. The user can change mean and variance. 
+It is also possible to vary the number of samples for each phase.
+The IC variates are represented in green, the OOC variates in red.
+A calibration set -- with the IC mean and variance -- is also created (but not shown). The user can control the size of the calibration set.<br>
+P-values are computed for the IC and OOC samples and shown in the second chart from the top.
+A very simple non-conformity measure is used: $\alpha_i = \left | x_i \right |$.
+
+<h4>Betting Function</h4>
+The p-value is transformed via a "calibrator" or "betting function" into a Bayes Factor or e-value.
+The following choices of calibrator are offered:<br>
+\[
+\begin{array}{lc}
+ \text{power calibrator} &  k p ^ {k-1}\\ 
+ \text{simple mixture} &  \frac{1-p+p\log p }{p \log^2 p }\\  
+ \text{linear} & 2(1-p) \\
+ \text{negative logarithm} & -\log(p)    
+\end{array}
+\]
+<br>
+The computation of the betting function can also be bypassed by choosing "None".
+
+<h4>CPD Statistic</h4>
+The user can choose among various methods: <br>
+\[
+\begin{array}{lc}
+ \text{CUSUM}            &  S_0=1, \, S_{i+1} = s_i \cdot \max(1,S_i) \\ 
+ \text{Shiryaev-Roberts} &  S_0=0, \, S_{i+1} = s_i \cdot (1+S_i) \\  
+ \text{First moment}^*   &  S_0=0, \, S_{i+1} = (s_1-\mu)+S_i \\
+ \text{Product}^*        &  S_0=0, \, S_{i+1} = (\log(s_i)+1) + S_i   
+\end{array}
+\]
+<br>
+The methods marked with an asterisk apply when the betting function is bypassed.<br>
+The user can choose the value of the threshold.
+The chart shows the behaviour of the statistic and the counts of the alarms, both during the IC phase as well as the OOC phase.
+""", name="Notes")
+
+#%%
+# srv = notes.show()
 
 # %%
 def plot_samples(ic_samples, ooc_samples):
@@ -391,7 +449,7 @@ class Martingale(param.Parameterized):
             "CUSUM": partial(CPD_r, s=lambda x: max(1, x), s_0=1),
             "Shiryaev-Roberts": partial(CPD_r, s=lambda x: 1+x, s_0=0),
             "Sum (of diffs from 0.5)": partial(Conformal_r, c=lambda x: x-0.5),
-            "Product (log)": partial(Conformal_r, c=lambda x: np.log(x)),
+            "Product (log)": partial(Conformal_r, c=lambda x: np.log(x)+1),
         }
         stat = method_dict[self.method]
         with param.batch_watch(self):
@@ -412,12 +470,20 @@ cpd_panel = pn.Column("<h1>Conformal Change Point Detection</h1>",
                       pn.Row(micp.sd.param, pn.Column(micp.sd.view,
                                                       micp.view)),
                       pn.Row(bf.param, bf.view),
-                      pn.Row(cpd.param, cpd.view))
+                      pn.Row(cpd.param, cpd.view),
+                      name="Conf CPD")
 
 # %%
 
-cpd_panel
+# cpd_panel
 # %%
 # srv = cpd_panel.show()
 
+# %%
+cpd_demo = pn.Tabs(cpd_panel, notes)
+cpd_demo
+# %%
+# srv = cpd_demo.show()
+# %%
+# srv.stop()
 # %%
