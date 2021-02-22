@@ -98,7 +98,13 @@ The user can choose among various methods: <br>
 The methods marked with an asterisk apply when the betting function is bypassed.<br>
 The user can choose the value of the threshold.
 The chart shows the behaviour of the statistic and the counts of the alarms, both during the IC phase as well as the OOC phase.
-""", name="Notes")
+
+<h2>References</h2>
+<ul>
+<li> Algorithmic learning in a random world, V. Vovk, A. Gammerman, G. Shafer, Springer, 2005
+<li> Working papers 24, 26, 29 at <a href="http://www.alrw.net/">ALRW Site</a>
+</ul>
+""", name="Notes", style={'font-size': '12pt'})
 
 #%%
 # srv = notes.show()
