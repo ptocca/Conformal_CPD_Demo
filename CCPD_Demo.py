@@ -90,7 +90,7 @@ The user can choose among various methods: <br>
 \begin{array}{lc}
  \text{CUSUM}            &  S_0=1, \, S_{i+1} = s_i \cdot \max(1,S_i) \\ 
  \text{Shiryaev-Roberts} &  S_0=0, \, S_{i+1} = s_i \cdot (1+S_i) \\  
- \text{First moment}^*   &  S_0=0, \, S_{i+1} = (s_1-\mu)+S_i \\
+ \text{First moment}^*   &  S_0=0, \, S_{i+1} = (s_i-\mu)+S_i \\
  \text{Product}^*        &  S_0=0, \, S_{i+1} = (\log(s_i)+1) + S_i   
 \end{array}
 \]
@@ -130,7 +130,7 @@ class Synthetic_Data_Set(param.Parameterized):
     N_in_control = param.Integer(default=2000, bounds=(100, 10000))
     N_out_of_control = param.Integer(default=2000, bounds=(100, 10000))
     N_calibration = param.Integer(default=5000, bounds=(100, 10000))
-    in_control_mean = param.Number(default=0.0, bounds=(-1.0, 1.0))
+    in_control_mean = param.Number(default=0.0, bounds=(-1.0, 1.0), constant=True)
     in_control_var = param.Number(default=1.0, bounds=(0.1, 10.0))
     out_of_control_mean = param.Number(default=1.0, bounds=(-2.0, 2.0))
     out_of_control_var = param.Number(default=1.0, bounds=(0.1, 10.0))
@@ -181,11 +181,8 @@ class Synthetic_Data_Set(param.Parameterized):
             self.output['in_control_samples'], self.output['out_of_control_samples'])
         return f
 
-    def view2(self):
-        return "# %d" % self.N
 
-
-sd = Synthetic_Data_Set()
+sd = Synthetic_Data_Set(name="Synthetic Data Set")
 # %%
 # sd_panel = pn.Row(sd, sd.view)
 
@@ -297,21 +294,6 @@ def simple_mixture(p):
     return (1-p+p*np.log(p))/(p*(np.log(p)*np.log(p)))
 
 
-def plot_bf(ic_samples, ooc_samples):
-    f = Figure(figsize=(12, 3.1))
-    ax_a = f.add_subplot(1, 1, 1)
-    x = np.arange(0, ic_samples.shape[0]+ooc_samples.shape[0])
-    ax_a.plot(x[:ic_samples.shape[0]], ic_samples, "g.",
-              label="in-control")
-    ax_a.plot(x[ic_samples.shape[0]:], ooc_samples, "r.",
-              label="out-of-control")
-    ax_a.set_title("Bayes Factors")
-    ax_a.legend()
-    ax_a.set_xlabel('"Time"')
-    f.tight_layout()
-
-    return f
-
 
 class Betting_Function(param.Parameterized):
     micp = param.Parameter(precedence=-1)
@@ -346,12 +328,28 @@ class Betting_Function(param.Parameterized):
     @pn.depends("ic_bf", "ic_bf")
     def view(self):
         return pn.Row(
-            plot_bf(self.ic_bf, self.ooc_bf)
+            self.plot_bf()
         )
 
+    def plot_bf(self):
+        if self.betting_function=='None':
+            return None
+        f = Figure(figsize=(12, 3.1))
+        ax_a = f.add_subplot(1, 1, 1)
+        x = np.arange(0, self.ic_bf.shape[0]+self.ooc_bf.shape[0])
+        ax_a.plot(x[:self.ic_bf.shape[0]], self.ic_bf, "g.",
+                label="in-control")
+        ax_a.plot(x[self.ic_bf.shape[0]:], self.ooc_bf, "r.",
+                label="out-of-control")
+        ax_a.set_title("e-values")
+        ax_a.legend()
+        ax_a.set_xlabel('"Time"')
+        f.tight_layout()
+
+        return f
 
 # %%
-bf = Betting_Function(micp)
+bf = Betting_Function(micp, name="Betting Function")
 # %%
 bf_panel = pn.Column(pn.Row(micp.sd.param, pn.Column(micp.sd.view,
                                                      micp.view)),
@@ -411,10 +409,11 @@ def CPD_Conf(x, r, r_0, thr):
 
 # %%
 
+import matplotlib
 
 def plot_martingale(mart, ic_size, thr):
     f = Figure(figsize=(12, 3.1))
-    ax_a = f.add_subplot(1, 1, 1)
+    ax_a:  matplotlib.axes.Axes = f.add_subplot(1, 1, 1)
     x = np.arange(0, mart.shape[0])
     ax_a.plot(x[:ic_size], mart[:ic_size], "g.",
               label="in-control")
@@ -428,7 +427,10 @@ def plot_martingale(mart, ic_size, thr):
     ax_a.annotate(f"Alarms\nin-control: {ic_alarms}, out-of-control:{ooc_alarms}",
                   xy=(0.5, 0.9), xycoords='axes fraction', va='top', ha='center',
                   bbox=dict(boxstyle="round", fc="yellow", alpha=0.5), fontsize=14)
-    
+    ax_a.axhline(y=thr, linestyle="--", color="k")
+    if np.any(mart<0):
+        ax_a.axhline(y=-thr, linestyle="--", color="k")
+
     f.tight_layout()
 
     return f
